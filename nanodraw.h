@@ -1,3 +1,81 @@
+/*
+ * [API Usage]:
+ *
+ * In one file, you should have this code:
+ *   #define NANODRAW_IMPLEMENTATION
+ *   #include "nanodraw.h"
+ * 
+ * In all other files that need to use the library, you should only have:
+ *   #include "nanodraw.h"
+ *
+ * Before using any functions from this library, you need to load an OpenGL 3.3 context.
+ * For this, you can utilize SDL, GLFW, RGFW, or your system libraries.
+ *
+ * After you create the OpenGL context, you must call "nd_init()":
+ *   bool nd_init(
+ *       int32_t viewport_w, int32_t viewport_h,
+ *       nd_Load_Proc get_gl_proc_address
+ *   );
+ *
+ * "get_gl_proc_address" is a function that loads OpenGL functions at runtime.
+ * In SDL, this is      "SDL_GL_GetProcAddress()".
+ * In GLFW, this is     "glfwGetProcAddress()".
+ * In RGFW, this is     "RGFW_getProcAddress_OpenGL()".
+ * In Windows, this is  "wglGetProcAddress()".
+ * In GLX, this is      "glXGetProcAddress()".
+ * In EGL, this is      "eglGetProcAddress()".
+ *
+ * Your compiler will probably complain about the return types being incompatible.
+ * You can just cast the function to "nd_Load_Proc" when you pass it.
+ *   nd_init(800, 600, (nd_Load_Proc)glfwGetProcAddress);
+ *
+ * [Drawing Functions]:
+ * 
+ * nanodraw.h has ONE drawing function "nd_queue_triangles()".
+ * All other functions like "nd_draw_rectangle()" are wrappers around "nd_queue_triangles()".
+ *
+ * "nd_queue_triangles()" only adds triangles to a cpu-side buffer.
+ * To send those triangles to the gpu, you must call "nd_submit_draw_queue()".
+ * You should try to minimize your calls to "nd_submit_draw_queue()".
+ *
+ * Do this:
+ *   nd_draw_rectangle();
+ *   nd_draw_rectangle();
+ *   nd_draw_rectangle();
+ *   nd_submit_draw_queue();
+ *
+ * Do NOT do this:
+ *   nd_draw_rectangle();
+ *   nd_submit_draw_queue();
+ *   nd_draw_rectangle();
+ *   nd_submit_draw_queue();
+ *   nd_draw_rectangle();
+ *   nd_submit_draw_queue();
+ *
+ * [Invalid Operations]:
+ *
+ * Because nanodraw.h keeps draw data in a buffer before sending it to the gpu,
+ * there are a few operations that should not happen in certain scenarios.
+ *
+ * You should not:
+ *   - free/deinit a texture or framebuffer while drawing operations are queued
+ *   - read texture data while drawing operations are queued
+ *   - clear a framebuffer while drawing operations are queued
+ *
+ * If you want to perform any of the above operations,
+ * you must empty the draw queue by calling "nd_submit_draw_queue()".
+ * From a game-loop perspective, you would want to perform the above operations
+ * only at the beginning or end of a frame.
+ * nanodraw.h will prevent you from performing invalid operations via ND_ASSERT.
+ *
+ * [Configuration Macros]:
+ * nanodraw.h has a few macros you can define before including the library:
+ *   NDDEF
+ *   ND_REALLOC
+ *   ND_FREE
+ *   ND_ASSERT
+ *   ND_INITIAL_DRAW_QUEUE_CAP
+ */
 #ifndef NANODRAW_H
 #define NANODRAW_H
 
@@ -34,8 +112,8 @@ typedef struct {
 #define ND_TEXTURE_NULL ((nd_Texture){0})
 
 typedef enum {
-    ND_FILTER_NEAREST = 0x2600,
-    ND_FILTER_LINEAR = 0x2601,
+    ND_FILTER_NEAREST,
+    ND_FILTER_LINEAR,
 } nd_Texture_Filter;
 
 typedef enum {
@@ -55,9 +133,11 @@ typedef struct {
 
 #define ND_FRAMEBUFFER_NULL ((nd_Framebuffer){0})
 
+typedef void (*(*nd_Load_Proc)(const char *))(void);
+
 NDDEF bool nd_init(
     int32_t viewport_w, int32_t viewport_h,
-    void *(*get_gl_proc_address)(const char *)
+    nd_Load_Proc get_gl_proc_address
 );
 
 NDDEF void nd_deinit(
@@ -220,6 +300,8 @@ NDDEF void nd_queue_triangles(
 #define ND_GL_TRIANGLES 0x0004
 #define ND_GL_DEPTH_TEST 0x0B71
 #define ND_GL_UNPACK_ALIGNMENT 0x0CF5
+#define ND_GL_NEAREST 0x2600
+#define ND_GL_LINEAR 0x2601
 
 typedef uint32_t (*nd__PFNGLGETERRORPROC)(void);
 typedef void (*nd__PFNGLGENVERTEXARRAYSPROC)(int32_t, uint32_t *);
@@ -313,7 +395,7 @@ ND_GL_FUNCS(ND_GL_FUNCS_DEF)
 
 #ifndef ND_ASSERT
     #include <assert.h>
-    #define ND_ASSERT assert
+    #define ND_ASSERT(exp) assert(exp)
 #endif
 
 #ifndef ND_INITIAL_DRAW_QUEUE_CAP
@@ -441,7 +523,7 @@ static const char *nd__fragment_source = "#version 330 core\n"
 
 NDDEF bool nd_init(
     int32_t viewport_w, int32_t viewport_h,
-    void *(*get_gl_proc_address)(const char *)
+    nd_Load_Proc get_gl_proc_address
 ) {
     ND_GL_FUNCS(ND_GL_FUNCS_LOAD)
 
@@ -559,6 +641,16 @@ NDDEF void nd_init_texture_from_image_buffer(
     int32_t image_w, int32_t image_h,
     nd_Texture_Filter min_filter, nd_Texture_Filter mag_filter
 ) {
+    if (min_filter == 0) {
+        min_filter = ND_GL_NEAREST;
+    } else {
+        min_filter = ND_GL_LINEAR;
+    }
+    if (mag_filter == 0) {
+        mag_filter = ND_GL_NEAREST;
+    } else {
+        mag_filter = ND_GL_LINEAR;
+    }
     uint32_t gpu_texture;
     nd__glGenTextures(1, &gpu_texture);
     nd__glBindTexture(ND_GL_TEXTURE_2D, gpu_texture);

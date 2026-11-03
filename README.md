@@ -37,7 +37,7 @@ int main() {
 
     glfwMakeContextCurrent(window);
 
-    if (!nd_init(800, 600, (void *)glfwGetProcAddress)) {
+    if (!nd_init(800, 600, (nd_Load_Proc)glfwGetProcAddress)) {
         puts("failed to init nanodraw");
         glfwTerminate();
         return -1;
@@ -80,7 +80,7 @@ int main() {
 nanodraw.h has several advantages over traditional 2D graphics libraries:
 - It's small (< 1000 LOC, roughly the same size as the [raylib cheatsheet](https://www.raylib.com/cheatsheet/cheatsheet.html))
 - It only depends on OpenGL and libc
-  - You pass in a function to load OpenGl pointers, and everything works
+  - You pass in a function to load OpenGL pointers, and everything works
 - It has a simple API that you can learn in 10 minutes (only 19 functions in the header section)
 - It abstracts away annoying OpenGL details like global state and flipped coordinates that remain in other libraries
   - Raylib will draw things upside down when you draw to a texture
