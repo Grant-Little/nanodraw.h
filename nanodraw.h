@@ -418,9 +418,9 @@ typedef struct {
 } nd__Draw_Entry;
 
 typedef struct {
-    float ndcx1, ndcy1; uint16_t u1, v1; nd_Color c1;
-    float ndcx2, ndcy2; uint16_t u2, v2; nd_Color c2;
-    float ndcx3, ndcy3; uint16_t u3, v3; nd_Color c3;
+    float ndc1[2]; uint16_t uv1[2]; nd_Color c1;
+    float ndc2[2]; uint16_t uv2[2]; nd_Color c2;
+    float ndc3[2]; uint16_t uv3[2]; nd_Color c3;
 } nd__Vertex_Data;
 
 typedef struct {
@@ -641,15 +641,16 @@ NDDEF void nd_init_texture_from_image_buffer(
     int32_t image_w, int32_t image_h,
     nd_Texture_Filter min_filter, nd_Texture_Filter mag_filter
 ) {
-    if (min_filter == 0) {
-        min_filter = ND_GL_NEAREST;
+    int32_t min_fil, mag_fil;
+    if (min_filter == ND_FILTER_NEAREST) {
+        min_fil = ND_GL_NEAREST;
     } else {
-        min_filter = ND_GL_LINEAR;
+        min_fil = ND_GL_LINEAR;
     }
-    if (mag_filter == 0) {
-        mag_filter = ND_GL_NEAREST;
+    if (mag_filter == ND_FILTER_LINEAR) {
+        mag_fil = ND_GL_NEAREST;
     } else {
-        mag_filter = ND_GL_LINEAR;
+        mag_fil = ND_GL_LINEAR;
     }
     uint32_t gpu_texture;
     nd__glGenTextures(1, &gpu_texture);
@@ -657,8 +658,8 @@ NDDEF void nd_init_texture_from_image_buffer(
     nd__ctx.last_tex = gpu_texture;
     nd__glTexParameteri(ND_GL_TEXTURE_2D, ND_GL_TEXTURE_WRAP_S, ND_GL_CLAMP_TO_EDGE);
     nd__glTexParameteri(ND_GL_TEXTURE_2D, ND_GL_TEXTURE_WRAP_T, ND_GL_CLAMP_TO_EDGE);
-    nd__glTexParameteri(ND_GL_TEXTURE_2D, ND_GL_TEXTURE_MIN_FILTER, min_filter);
-    nd__glTexParameteri(ND_GL_TEXTURE_2D, ND_GL_TEXTURE_MAG_FILTER, mag_filter);
+    nd__glTexParameteri(ND_GL_TEXTURE_2D, ND_GL_TEXTURE_MIN_FILTER, min_fil);
+    nd__glTexParameteri(ND_GL_TEXTURE_2D, ND_GL_TEXTURE_MAG_FILTER, mag_fil);
     nd__glTexImage2D(ND_GL_TEXTURE_2D, 0, ND_GL_RGBA8, image_w, image_h, 0, ND_GL_RGBA, ND_GL_UNSIGNED_BYTE, image_rgba8888);
     tex__out->id = gpu_texture;
     tex__out->w = image_w;
@@ -963,12 +964,12 @@ NDDEF void nd_draw_texture(
 }
 
 #define ND__NDC_DISPATCH(NDC_FUNC) \
-     NDC_FUNC(&tri_data->ndcx1, triangles->x1, triangles->y1, new_draw_data.fb.w, new_draw_data.fb.h); \
-     NDC_FUNC(&tri_data->ndcx2, triangles->x2, triangles->y2, new_draw_data.fb.w, new_draw_data.fb.h); \
-     NDC_FUNC(&tri_data->ndcx3, triangles->x3, triangles->y3, new_draw_data.fb.w, new_draw_data.fb.h); \
-     nd__screen_to_uv_u16(&tri_data->u1, triangles->tex_x1, triangles->tex_y1, tex.w, tex.h); \
-     nd__screen_to_uv_u16(&tri_data->u2, triangles->tex_x2, triangles->tex_y2, tex.w, tex.h); \
-     nd__screen_to_uv_u16(&tri_data->u3, triangles->tex_x3, triangles->tex_y3, tex.w, tex.h); \
+     NDC_FUNC(tri_data->ndc1, triangles->x1, triangles->y1, new_draw_data.fb.w, new_draw_data.fb.h); \
+     NDC_FUNC(tri_data->ndc2, triangles->x2, triangles->y2, new_draw_data.fb.w, new_draw_data.fb.h); \
+     NDC_FUNC(tri_data->ndc3, triangles->x3, triangles->y3, new_draw_data.fb.w, new_draw_data.fb.h); \
+     nd__screen_to_uv_u16(tri_data->uv1, triangles->tex_x1, triangles->tex_y1, tex.w, tex.h); \
+     nd__screen_to_uv_u16(tri_data->uv2, triangles->tex_x2, triangles->tex_y2, tex.w, tex.h); \
+     nd__screen_to_uv_u16(tri_data->uv3, triangles->tex_x3, triangles->tex_y3, tex.w, tex.h); \
      tri_data->c1 = triangles->c1; \
      tri_data->c2 = triangles->c2; \
      tri_data->c3 = triangles->c3; \
