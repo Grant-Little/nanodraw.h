@@ -72,6 +72,7 @@ int main() {
     nd_deinit();
     glfwTerminate();
     return 0;
+}
 ```
 
 ## Why use this over Raylib/SDL/etc?
