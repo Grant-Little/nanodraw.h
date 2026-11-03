@@ -49,7 +49,8 @@ typedef enum {
 
 typedef struct {
     uint32_t id;
-    nd_Texture tex;
+    int32_t w;
+    int32_t h;
 } nd_Framebuffer;
 
 #define ND_FRAMEBUFFER_NULL ((nd_Framebuffer){0})
@@ -597,7 +598,8 @@ NDDEF bool nd_init_framebuffer_from_texture(
     }
 
     fb__out->id = fbo;
-    fb__out->tex = tex;
+    fb__out->w = tex.w;
+    fb__out->h = tex.h;
     return true;
 }
 
@@ -645,7 +647,7 @@ NDDEF bool nd_submit_draw_queue(
         if (entry->data.fb.id != nd__ctx.last_fb) {
             nd__glBindFramebuffer(ND_GL_DRAW_FRAMEBUFFER, entry->data.fb.id);
             nd__ctx.last_fb = entry->data.fb.id;
-            nd__glViewport(0, 0, entry->data.fb.tex.w, entry->data.fb.tex.h);
+            nd__glViewport(0, 0, entry->data.fb.w, entry->data.fb.h);
         }
         if (entry->data.tex_id != nd__ctx.last_tex) {
             nd__glBindTexture(ND_GL_TEXTURE_2D, entry->data.tex_id);
@@ -869,9 +871,9 @@ NDDEF void nd_draw_texture(
 }
 
 #define ND__NDC_DISPATCH(NDC_FUNC) \
-     NDC_FUNC(&tri_data->ndcx1, triangles->x1, triangles->y1, new_draw_data.fb.tex.w, new_draw_data.fb.tex.h); \
-     NDC_FUNC(&tri_data->ndcx2, triangles->x2, triangles->y2, new_draw_data.fb.tex.w, new_draw_data.fb.tex.h); \
-     NDC_FUNC(&tri_data->ndcx3, triangles->x3, triangles->y3, new_draw_data.fb.tex.w, new_draw_data.fb.tex.h); \
+     NDC_FUNC(&tri_data->ndcx1, triangles->x1, triangles->y1, new_draw_data.fb.w, new_draw_data.fb.h); \
+     NDC_FUNC(&tri_data->ndcx2, triangles->x2, triangles->y2, new_draw_data.fb.w, new_draw_data.fb.h); \
+     NDC_FUNC(&tri_data->ndcx3, triangles->x3, triangles->y3, new_draw_data.fb.w, new_draw_data.fb.h); \
      nd__screen_to_uv_u16(&tri_data->u1, triangles->tex_x1, triangles->tex_y1, tex.w, tex.h); \
      nd__screen_to_uv_u16(&tri_data->u2, triangles->tex_x2, triangles->tex_y2, tex.w, tex.h); \
      nd__screen_to_uv_u16(&tri_data->u3, triangles->tex_x3, triangles->tex_y3, tex.w, tex.h); \
@@ -905,8 +907,8 @@ NDDEF void nd_queue_triangles(
     nd__Draw_Data new_draw_data = {0};
     new_draw_data.fb = fb;
     if (fb.id == 0) {
-        new_draw_data.fb.tex.w = nd__ctx.viewport_w;
-        new_draw_data.fb.tex.h = nd__ctx.viewport_h;
+        new_draw_data.fb.w = nd__ctx.viewport_w;
+        new_draw_data.fb.h = nd__ctx.viewport_h;
     }
     new_draw_data.tex_id = tex.id;
     new_draw_data.blend = blend;
