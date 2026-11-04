@@ -281,6 +281,7 @@ NDDEF void nd_draw_string_from_image_font(
     nd_Blend blend,
     nd_Image_Font font,
     unsigned int scale,
+    float min_x, float min_y,
     const char *string
 );
 
@@ -289,6 +290,7 @@ NDDEF void nd_draw_string_from_image_font_len(
     nd_Blend blend,
     nd_Image_Font font,
     unsigned int scale,
+    float min_x, float min_y,
     const char *string,
     size_t len
 );
@@ -860,7 +862,7 @@ NDDEF void nd_draw_triangle(
         x2, y2, 0, 0, c,
         x3, y3, 0, 0, c
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         ND_TEXTURE_NULL,
         blend,
@@ -881,7 +883,7 @@ NDDEF void nd_draw_triangle_3color(
         x2, y2, 0, 0, c2,
         x3, y3, 0, 0, c3
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         ND_TEXTURE_NULL,
         blend,
@@ -903,7 +905,7 @@ NDDEF void nd_draw_triangle_textured(
         x2, y2, tex_x2, tex_y2, ND_NO_COLOR,
         x3, y3, tex_x3, tex_y3, ND_NO_COLOR
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         tex,
         blend,
@@ -930,7 +932,7 @@ NDDEF void nd_draw_rectangle(
         min_x, min_y + h, 0, 0, c,
         min_x + w, min_y + h, 0, 0, c
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         ND_TEXTURE_NULL,
         blend,
@@ -957,7 +959,7 @@ NDDEF void nd_draw_rectangle_4color(
         min_x, min_y + h, 0, 0, c2,
         min_x + w, min_y + h, 0, 0, c3
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         ND_TEXTURE_NULL,
         blend,
@@ -986,7 +988,7 @@ NDDEF void nd_draw_rectangle_textured(
         min_x, min_y + h, tex_min_x, tex_min_y + tex_h, ND_NO_COLOR,
         min_x + w, min_y + h, tex_min_x + tex_w, tex_min_y + tex_h, ND_NO_COLOR
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         tex,
         blend,
@@ -1012,7 +1014,7 @@ NDDEF void nd_draw_texture(
         min_x, min_y + tex.h, 0, tex.h, ND_NO_COLOR,
         min_x + tex.w, min_y + tex.h, tex.w, tex.h, ND_NO_COLOR
     };
-    return nd_queue_triangles(
+    nd_queue_triangles(
         fb,
         tex,
         blend,
@@ -1066,17 +1068,105 @@ NDDEF void nd_draw_string_from_image_font(
     nd_Blend blend,
     nd_Image_Font font,
     unsigned int scale,
+    float min_x, float min_y,
     const char *string
-);
+) {
+    nd_draw_string_from_image_font_len(
+        fb,
+        vlend,
+        font,
+        scale,
+        min_x, min_y,
+        string,
+        strlen(string)
+    );
+}
 
+#define ND__DRAW_STRING_BUF_LEN
 NDDEF void nd_draw_string_from_image_font_len(
     nd_Framebuffer fb,
     nd_Blend blend,
     nd_Image_Font font,
     unsigned int scale,
+    float min_x, float min_y,
     const char *string,
     size_t len
-);
+) {
+    nd_Triangle_Data [ND__DRAW_STRING_BUF_LEN]tri_buf;
+    nd_Triangle_Data temp;
+    temp.c1 = ND_NO_COLOR;
+    temp.c2 = ND_NO_COLOR;
+    temp.c3 = ND_NO_COLOR;
+    uint32_t queued_tris = 0;
+    char code;
+    float tex_height = font.tex.h;
+    float max_y = min_y + scale * font.tex.h;
+    for (size_t i = 0; i < len; ++i) {
+        code = string[i];
+        ND_ASSERT(code >= ' ' && code <= '~' && "can only draw ascii printable characters from nd_ImageFont");
+        
+        float tex_min_x = font.runes[code].xmin;
+        float tex_width = font.runes[code].width;
+        float fb_width = tex_width * scale;
+        temp.x1 = min_x;
+        temp.y1 = min_y;
+        temp.tex_x1 = tex_min_x;
+        temp.tex_y1 = 0;
+
+        temp.x2 = min_x;
+        temp.y2 = max_y;
+        temp.tex_x2 = tex_min_x;
+        temp.tex_y2 = tex_height;
+
+        temp.x3 = min_x + fb_width;
+        temp.y3 = min_y;
+        temp.tex_x3 = tex_min_x + tex_width;
+        temp.tex_y3 = 0;
+
+        memcpy(tri_buf + queued_tris, &temp, sizeof(nd_Triangle_Data));
+
+        temp.x1 = min_x + fb_width;
+        temp.y1 = min_y;
+        temp.tex_x1 = tex_min_x + tex_width;
+        temp.tex_y1 = 0;
+
+        temp.x2 = min_x;
+        temp.y2 = max_y;
+        temp.tex_x2 = tex_min_x;
+        temp.tex_y2 = tex_height;
+
+        temp.x3 = min_x + fb_width;
+        temp.y3 = max_y;
+        temp.tex_x3 = tex_min_x + tex_width;
+        temp.tex_y3 = tex_height;
+
+        memcpy(tri_buf + queued_tris + 1, &temp, sizeof(nd_Triangle_Data));
+
+        queued_tris += 2;
+        if (queued_tris == ND__DRAW_STRING_BUF_LEN) {
+            nd_queue_triangles(
+                fb,
+                font->tex,
+                blend,
+                tri_buf,
+                queued_tris
+            );
+            queued_tris = 0;
+        }
+
+        min_x += fb_width + character_spacing * scale;
+    }
+
+    if (queued_tris != 0) {
+        nd_queue_triangles(
+            fb,
+            font->tex,
+            blend,
+            tri_buf,
+            queued_tris
+        );
+    }
+}
 
 NDDEF size_t nd_measure_string_from_image_font(
     nd_Image_Font font,
