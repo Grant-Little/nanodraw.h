@@ -79,6 +79,7 @@
 #ifndef NANODRAW_H
 #define NANODRAW_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -248,6 +249,64 @@ NDDEF void nd_draw_texture(
 );
 
 typedef struct {
+    int x_min;
+    int width;
+} nd__Rune_Descriptor;
+
+typedef struct {
+    nd_Texture tex;
+    int character_spacing;
+    nd__Rune_Descriptor runes[127]; // 32 to 126, representing ascii printable characters
+} nd_Image_Font;
+
+#define ND_IMAGE_FONT_NULL ((nd_Image_Font){0})
+
+extern nd_Image_Font nd_default_image_font;
+
+NDDEF void nd_init_image_font_from_image_buffer(
+    nd_Image_Font *font__out,
+    const uint8_t *image_rgba8888,
+    int32_t image_w, int32_t image_h,
+    nd_Color separator_color,
+    int character_spacing,
+    nd_Texture_Filter min_filter, nd_Texture_Filter mag_filter
+);
+
+NDDEF void nd_deinit_image_font(
+    nd_Image_Font *font
+);
+
+NDDEF void nd_draw_string_from_image_font(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string
+);
+
+NDDEF void nd_draw_string_from_image_font_len(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string,
+    size_t len
+);
+
+NDDEF void nd_measure_string_from_image_font(
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string,
+);
+
+NDDEF void nd_measure_string_from_image_font_len(
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string,
+    size_t len
+);
+
+typedef struct {
     float x1; float y1; float tex_x1; float tex_y1; nd_Color c1;
     float x2; float y2; float tex_x2; float tex_y2; nd_Color c2;
     float x3; float y3; float tex_x3; float tex_y3; nd_Color c3;
@@ -265,7 +324,6 @@ NDDEF void nd_queue_triangles(
 
 #ifdef NANODRAW_IMPLEMENTATION
 
-#include <stddef.h>
 #include <string.h>
 
 #define ND_GL_ARRAY_BUFFER 0x8892
