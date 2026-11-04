@@ -1092,6 +1092,9 @@ NDDEF void nd_draw_string_from_image_font_len(
     const char *string,
     size_t len
 ) {
+    if (font.tex.id == 0) {
+        font = nd_default_image_font;
+    }
     nd_Triangle_Data [ND__DRAW_STRING_BUF_LEN]tri_buf;
     nd_Triangle_Data temp;
     temp.c1 = ND_NO_COLOR;
@@ -1146,7 +1149,7 @@ NDDEF void nd_draw_string_from_image_font_len(
         if (queued_tris == ND__DRAW_STRING_BUF_LEN) {
             nd_queue_triangles(
                 fb,
-                font->tex,
+                font.tex,
                 blend,
                 tri_buf,
                 queued_tris
@@ -1154,13 +1157,13 @@ NDDEF void nd_draw_string_from_image_font_len(
             queued_tris = 0;
         }
 
-        min_x += fb_width + character_spacing * scale;
+        min_x += fb_width + font.character_spacing * scale;
     }
 
     if (queued_tris != 0) {
         nd_queue_triangles(
             fb,
-            font->tex,
+            font.tex,
             blend,
             tri_buf,
             queued_tris
@@ -1172,14 +1175,31 @@ NDDEF size_t nd_measure_string_from_image_font(
     nd_Image_Font font,
     unsigned int scale,
     const char *string,
-);
+) {
+    nd_measure_string_from_image_font_len(
+        font,
+        scale,
+        string,
+        strlen(string)
+    );
+}
 
 NDDEF size_t nd_measure_string_from_image_font_len(
     nd_Image_Font font,
     unsigned int scale,
     const char *string,
     size_t len
-);
+) {
+    size_t width;
+    for (size_t i = 0; i < len; ++i) {
+        char code = string[i];
+        ND_ASSERT(code >= ' ' && code <= '~' && "can only draw ascii printable characters from nd_ImageFont");
+        width += (font.runes[(int)code].width + font.character_spacing)* scale;
+    }
+    width -= character_spacing * scale;
+
+    return width;
+}
 
 #define ND__NDC_DISPATCH(NDC_FUNC) \
      NDC_FUNC(tri_data->ndc1, triangles->x1, triangles->y1, new_draw_data.fb.w, new_draw_data.fb.h); \
