@@ -293,13 +293,13 @@ NDDEF void nd_draw_string_from_image_font_len(
     size_t len
 );
 
-NDDEF void nd_measure_string_from_image_font(
+NDDEF size_t nd_measure_string_from_image_font(
     nd_Image_Font font,
     unsigned int scale,
     const char *string,
 );
 
-NDDEF void nd_measure_string_from_image_font_len(
+NDDEF size_t nd_measure_string_from_image_font_len(
     nd_Image_Font font,
     unsigned int scale,
     const char *string,
@@ -1020,6 +1020,76 @@ NDDEF void nd_draw_texture(
         2
     );
 }
+
+NDDEF void nd_init_image_font_from_image_buffer(
+    nd_Image_Font *font__out,
+    const uint8_t *image_rgba8888,
+    int32_t image_w, int32_t image_h,
+    nd_Color separator_color,
+    int character_spacing,
+    nd_Texture_Filter min_filter, nd_Texture_Filter mag_filter
+) {
+    char code = ' ';
+    int code_xmin = 0;
+    int code_width = 0;
+    const nd_Color *pixels = (nd_Color *)image_rgba8888;
+    nd_Color c;
+    for (int i = 0; i < image_w && code <= '~'; ++i) {
+        c = pixels[i];
+        if (!memcmp(&c, &separator_color, sizeof(Color))) {
+            font__out->runes[(int)code] = (nd__Rune_Descriptor){code_xmin, code_width};
+            ++code;
+            code_xmin = i + 1;
+            code_width = 0;
+        } else {
+            ++code_width;
+        }
+    }
+
+    if (code == '~') {
+        font__out->runes[(int)code] = (nd__Rune_Descriptor){code_xmin, code_width};
+    }
+
+    nd_init_texture_from_image_buffer(&font__out->tex, image_w, image_h, min_filter, mag_filter);
+    font__out->character_spacing = character_spacing;
+}
+
+NDDEF void nd_deinit_image_font(
+    nd_Image_Font *font
+) {
+    nd_deinit_texture(font->tex);
+    *font = (nd_Image_Font){0};
+}
+
+NDDEF void nd_draw_string_from_image_font(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string
+);
+
+NDDEF void nd_draw_string_from_image_font_len(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string,
+    size_t len
+);
+
+NDDEF size_t nd_measure_string_from_image_font(
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string,
+);
+
+NDDEF size_t nd_measure_string_from_image_font_len(
+    nd_Image_Font font,
+    unsigned int scale,
+    const char *string,
+    size_t len
+);
 
 #define ND__NDC_DISPATCH(NDC_FUNC) \
      NDC_FUNC(tri_data->ndc1, triangles->x1, triangles->y1, new_draw_data.fb.w, new_draw_data.fb.h); \
