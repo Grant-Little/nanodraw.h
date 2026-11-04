@@ -652,7 +652,7 @@ NDDEF bool nd_init(
             default_font_height,
             default_font_separator_color,
             1,
-            ND_FILTER_NEAREST, ND_FILTER_NEAREST
+            ND_FILTER_NEAREST, ND_FILTER_LINEAR
         );
     }
 
@@ -682,6 +682,9 @@ NDDEF bool nd_init(
 NDDEF void nd_deinit(
     void
 ) {
+    nd_deinit_image_font(
+        &nd_default_image_font
+    );
     ND_FREE(nd__ctx.draw_queue.draw_entry_start);
     nd__ctx = (nd__Context){0};
 }
@@ -1120,15 +1123,15 @@ NDDEF void nd_draw_string_from_image_font_len(
     temp.c3 = ND_NO_COLOR;
     uint32_t queued_tris = 0;
     char code;
-    float tex_height = font.tex.h;
-    float max_y = min_y + scale * font.tex.h;
+    int tex_height = font.tex.h;
+    int max_y = min_y + scale * font.tex.h;
     for (size_t i = 0; i < len; ++i) {
         code = string[i];
         ND_ASSERT(code >= ' ' && code <= '~' && "can only draw ascii printable characters from nd_ImageFont");
         
-        float tex_min_x = font.runes[(int)code].x_min;
-        float tex_width = font.runes[(int)code].width;
-        float fb_width = tex_width * scale;
+        int tex_min_x = font.runes[(int)code].x_min;
+        int tex_width = font.runes[(int)code].width;
+        int fb_width = tex_width * scale;
         temp.x1 = min_x;
         temp.y1 = min_y;
         temp.tex_x1 = tex_min_x;
