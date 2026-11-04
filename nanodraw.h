@@ -75,6 +75,7 @@
  *   ND_FREE
  *   ND_ASSERT
  *   ND_INITIAL_DRAW_QUEUE_CAP
+ *   ND_DEFAULT_DRAW_STRING_COLOR
  */
 #ifndef NANODRAW_H
 #define NANODRAW_H
@@ -124,6 +125,7 @@ typedef enum {
     ND_BLEND_ADD,
     ND_BLEND_ADD_PRE_ALPHA,
     ND_BLEND_MUL,
+    ND_BLEND_ALPHA_REPLACE,
 } nd_Blend;
 
 typedef struct {
@@ -256,10 +258,10 @@ typedef struct {
 typedef struct {
     nd_Texture tex;
     int character_spacing;
+    uint32_t fb_id;
+    nd_Color last_color;
     nd__Rune_Descriptor runes[127]; // 32 to 126, representing ascii printable characters
 } nd_Image_Font;
-
-#define ND_IMAGE_FONT_NULL ((nd_Image_Font){0})
 
 extern nd_Image_Font nd_default_image_font;
 
@@ -279,20 +281,21 @@ NDDEF void nd_deinit_image_font(
 NDDEF void nd_draw_string_from_image_font(
     nd_Framebuffer fb,
     nd_Blend blend,
-    nd_Image_Font font,
-    unsigned int scale,
+    nd_Image_Font *font,
+    const char *string,
     float min_x, float min_y,
-    const char *string
+    nd_Color c,
+    unsigned int scale
 );
 
 NDDEF void nd_draw_string_from_image_font_len(
     nd_Framebuffer fb,
     nd_Blend blend,
-    nd_Image_Font font,
-    unsigned int scale,
+    nd_Image_Font *font,
+    const char *string, size_t len,
     float min_x, float min_y,
-    const char *string,
-    size_t len
+    nd_Color c,
+    unsigned int scale
 );
 
 NDDEF size_t nd_measure_string_from_image_font(
@@ -340,6 +343,7 @@ NDDEF void nd_queue_triangles(
 #define ND_GL_ZERO 0
 #define ND_GL_ONE 1
 #define ND_GL_SRC_COLOR 0x0300
+#define ND_GL_DST_ALPHA 0x0304
 #define ND_GL_TEXTURE_2D 0x0DE1
 #define ND_GL_TEXTURE_WRAP_S 0x2802
 #define ND_GL_CLAMP_TO_EDGE 0x812F
@@ -460,6 +464,10 @@ ND_GL_FUNCS(ND_GL_FUNCS_DEF)
 
 #ifndef ND_INITIAL_DRAW_QUEUE_CAP
     #define ND_INITIAL_DRAW_QUEUE_CAP 1024
+#endif
+
+#ifndef ND_DEFAULT_DRAW_STRING_COLOR
+    #define ND_DEFAULT_DRAW_STRING_COLOR ND_WHITE
 #endif
 
 typedef struct {
@@ -852,6 +860,10 @@ NDDEF bool nd_submit_draw_queue(
                 if (nd__ctx.last_blend == ND_BLEND_NONE) nd__glEnable(ND_GL_BLEND);
                 nd__glBlendFunc(ND_GL_ZERO, ND_GL_SRC_COLOR);
                 break;
+            case ND_BLEND_ALPHA_REPLACE:
+                if (nd__ctx.last_blend == ND_BLEND_NONE) nd__glEnable(ND_GL_BLEND);
+                nd__glBlendFunc(ND_GL_DST_ALPHA, ND_GL_ZERO);
+                break;
             }
             nd__ctx.last_blend = entry->data.blend;
         }
@@ -1075,11 +1087,24 @@ NDDEF void nd_init_image_font_from_image_buffer(
 
     nd_init_texture_from_image_buffer(&font__out->tex, image_rgba8888, image_w, image_h, min_filter, mag_filter);
     font__out->character_spacing = character_spacing;
+
+    nd_Framebuffer fb;
+    nd_init_framebuffer_from_texture(
+        &fb,
+        font__out->tex
+    );
+    font__out->fb_id = fb.id;
+    font__out->last_color = ND_DEFAULT_DRAW_STRING_COLOR;
 }
 
 NDDEF void nd_deinit_image_font(
     nd_Image_Font *font
 ) {
+    nd_Framebuffer fb;
+    fb.id = font->fb_id;
+    fb.w = font->tex.w;
+    fb.h = font->tex.h;
+    nd_deinit_framebuffer(&fb);
     nd_deinit_texture(&font->tex);
     *font = (nd_Image_Font){0};
 }
@@ -1087,19 +1112,20 @@ NDDEF void nd_deinit_image_font(
 NDDEF void nd_draw_string_from_image_font(
     nd_Framebuffer fb,
     nd_Blend blend,
-    nd_Image_Font font,
-    unsigned int scale,
+    nd_Image_Font *font,
+    const char *string,
     float min_x, float min_y,
-    const char *string
+    nd_Color c,
+    unsigned int scale
 ) {
     nd_draw_string_from_image_font_len(
         fb,
         blend,
         font,
-        scale,
+        string, strlen(string),
         min_x, min_y,
-        string,
-        strlen(string)
+        c,
+        scale
     );
 }
 
@@ -1107,15 +1133,39 @@ NDDEF void nd_draw_string_from_image_font(
 NDDEF void nd_draw_string_from_image_font_len(
     nd_Framebuffer fb,
     nd_Blend blend,
-    nd_Image_Font font,
-    unsigned int scale,
+    nd_Image_Font *font,
+    const char *string, size_t len,
     float min_x, float min_y,
-    const char *string,
-    size_t len
+    nd_Color c,
+    unsigned int scale
 ) {
-    if (font.tex.id == 0) {
-        font = nd_default_image_font;
+    if (!font) font = &nd_default_image_font;
+
+    nd_Framebuffer fb_;
+    fb_.id = font->fb_id;
+    fb_.w = font->tex.w;
+    fb_.h = font->tex.h;
+
+    nd_Color no_color = ND_NO_COLOR;
+    if (memcmp(&no_color, &c, sizeof(nd_Color)) == 0) {
+        c = font->last_color;
+    } else {
+        if (c.a != 255) {
+            c.a = 255;
+        }
+        if (memcmp(&c, &font->last_color, sizeof(nd_Color)) != 0) {
+            font->last_color = c;
+        }
     }
+
+    nd_draw_rectangle(
+        fb_,
+        ND_BLEND_ALPHA_REPLACE,
+        0, 0,
+        font->tex.w, font->tex.h,
+        c
+    );
+
     nd_Triangle_Data tri_buf[ND__DRAW_STRING_BUF_LEN];
     nd_Triangle_Data temp;
     temp.c1 = ND_NO_COLOR;
@@ -1123,14 +1173,14 @@ NDDEF void nd_draw_string_from_image_font_len(
     temp.c3 = ND_NO_COLOR;
     uint32_t queued_tris = 0;
     char code;
-    int tex_height = font.tex.h;
-    int max_y = min_y + scale * font.tex.h;
+    int tex_height = font->tex.h;
+    int max_y = min_y + scale * font->tex.h;
     for (size_t i = 0; i < len; ++i) {
         code = string[i];
         ND_ASSERT(code >= ' ' && code <= '~' && "can only draw ascii printable characters from nd_ImageFont");
         
-        int tex_min_x = font.runes[(int)code].x_min;
-        int tex_width = font.runes[(int)code].width;
+        int tex_min_x = font->runes[(int)code].x_min;
+        int tex_width = font->runes[(int)code].width;
         int fb_width = tex_width * scale;
         temp.x1 = min_x;
         temp.y1 = min_y;
@@ -1170,7 +1220,7 @@ NDDEF void nd_draw_string_from_image_font_len(
         if (queued_tris == ND__DRAW_STRING_BUF_LEN) {
             nd_queue_triangles(
                 fb,
-                font.tex,
+                font->tex,
                 blend,
                 tri_buf,
                 queued_tris
@@ -1178,13 +1228,13 @@ NDDEF void nd_draw_string_from_image_font_len(
             queued_tris = 0;
         }
 
-        min_x += fb_width + font.character_spacing * scale;
+        min_x += fb_width + font->character_spacing * scale;
     }
 
     if (queued_tris != 0) {
         nd_queue_triangles(
             fb,
-            font.tex,
+            font->tex,
             blend,
             tri_buf,
             queued_tris

@@ -61,10 +61,11 @@ int main() {
         nd_draw_string_from_image_font(
             ND_FRAMEBUFFER_NULL,
             ND_BLEND_NONE,
-            ND_IMAGE_FONT_NULL,
-            4,
+            NULL,
+            "Hello, nanodraw.h",
             20, 20,
-            "Hello, nanodraw.h"
+            ND_WHITE,
+            4
         );
 
         if (!nd_submit_draw_queue()) {
@@ -87,7 +88,7 @@ int main() {
 ## Why use this over Raylib/SDL/etc?
 
 nanodraw.h has several advantages over traditional 2D graphics libraries:
-- It's small (< 1500 LOC, smaller than raylib's header file with no implementations)
+- It's small (< 1600 LOC, smaller than raylib's header file that has no implementations)
 - It only depends on OpenGL and libc
   - You pass in a function to load OpenGL pointers, and everything works
 - It has a simple API that you can learn in 10 minutes (only 25 functions in the header section)
