@@ -534,7 +534,7 @@ static size_t nd__draw_queue_mem_size(int32_t cap) {
 
 static bool nd__draw_queue_init(nd__Draw_Queue *queue__out, size_t cap) {
     size_t alloc_size = nd__draw_queue_mem_size(cap);
-    uint8_t *alloc_result = ND_REALLOC(NULL, alloc_size);
+    uint8_t *alloc_result = (uint8_t *)ND_REALLOC(NULL, alloc_size);
     if (!alloc_result) {
         return false;
     }
@@ -544,6 +544,7 @@ static bool nd__draw_queue_init(nd__Draw_Queue *queue__out, size_t cap) {
     queue__out->vertex_data_start = (nd__Vertex_Data *)(alloc_result + cap * sizeof(nd__Draw_Entry));
     queue__out->len = 0;
     queue__out->cap = cap;
+    queue__out->num_entries = 0;
 
     return true;
 }
@@ -552,7 +553,7 @@ static bool nd__draw_queue_grow(nd__Draw_Queue *queue) {
     size_t new_cap = queue->cap * 2;
     ptrdiff_t old_vertex_data_offset = ((uint8_t *)queue->vertex_data_start) - ((uint8_t *)queue->draw_entry_start);
     size_t alloc_size = nd__draw_queue_mem_size(new_cap);
-    uint8_t *alloc_result = ND_REALLOC(queue->draw_entry_start, alloc_size);
+    uint8_t *alloc_result = (uint8_t *)ND_REALLOC(queue->draw_entry_start, alloc_size);
     if (!alloc_result) {
         return false;
     }
@@ -601,7 +602,7 @@ NDDEF bool nd_init(
     uint32_t vao;
     uint32_t vbo;
     {
-        nd__Vertex_Layout dummy_vertex = {0};
+        nd__Vertex_Layout dummy_vertex;
 
         nd__glGenVertexArrays(1, &vao);
         nd__glGenBuffers(1, &vbo);
@@ -668,7 +669,7 @@ NDDEF bool nd_init(
     nd__glDisable(ND_GL_DEPTH_TEST);
     nd__glDisable(ND_GL_BLEND);
 
-    nd__Draw_Queue dq = {0};
+    nd__Draw_Queue dq;
     if (!nd__draw_queue_init(&dq, ND_INITIAL_DRAW_QUEUE_CAP)) {
         return false;
     }
@@ -682,7 +683,7 @@ NDDEF bool nd_init(
     nd__ctx.textureless_id = textureless_id;
     nd__ctx.last_fb = 0;
     nd__ctx.last_tex = textureless_id;
-    nd__ctx.last_blend = 0;
+    nd__ctx.last_blend = ND_BLEND_NONE;
 
     return true;
 }
@@ -694,7 +695,7 @@ NDDEF void nd_deinit(
         &nd_default_image_font
     );
     ND_FREE(nd__ctx.draw_queue.draw_entry_start);
-    nd__ctx = (nd__Context){0};
+    memset(&nd__ctx, 0, sizeof(nd__Context));
 }
 
 
@@ -721,7 +722,7 @@ NDDEF void nd_deinit_texture(
     if (nd__ctx.last_tex == tex->id) {
         nd__ctx.last_tex = 0;
     }
-    *tex = (nd_Texture){0};
+    memset(tex, 0, sizeof(nd_Texture));
 }
 
 NDDEF void nd_init_texture_from_image_buffer(
@@ -804,7 +805,7 @@ NDDEF void nd_deinit_framebuffer(
     if (nd__ctx.last_fb == fb->id) {
         nd__ctx.last_fb = 0;
     }
-    *fb = (nd_Framebuffer){0};
+    memset(fb, 0, sizeof(nd_Framebuffer));
 }
 
 NDDEF bool nd_submit_draw_queue(
@@ -1106,7 +1107,7 @@ NDDEF void nd_deinit_image_font(
     fb.h = font->tex.h;
     nd_deinit_framebuffer(&fb);
     nd_deinit_texture(&font->tex);
-    *font = (nd_Image_Font){0};
+    memset(font, 0, sizeof(nd_Image_Font));
 }
 
 NDDEF void nd_draw_string_from_image_font(
@@ -1306,7 +1307,7 @@ NDDEF void nd_queue_triangles(
         tex.h = 1;
     }
 
-    nd__Draw_Data new_draw_data = {0};
+    nd__Draw_Data new_draw_data;
     new_draw_data.fb = fb;
     if (fb.id == 0) {
         new_draw_data.fb.w = nd__ctx.viewport_w;
