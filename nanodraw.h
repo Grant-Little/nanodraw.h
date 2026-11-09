@@ -84,6 +84,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined(__cplusplus)
+    #define ND__ZERO_LIT(type) type{}
+#elif __STDC_VERSION__ >= 202311L
+    #define ND__ZERO_LIT(type) (type){}
+#else
+    #define ND__ZERO_LIT(type) (type){0}
+#endif
+
 #ifndef NDDEF
     #define NDDEF extern
 #endif
@@ -111,7 +119,7 @@ typedef struct {
     int32_t h;
 } nd_Texture;
 
-#define ND_TEXTURE_NULL ((nd_Texture){0})
+#define ND_TEXTURE_NULL (ND__ZERO_LIT(nd_Texture))
 
 typedef enum {
     ND_FILTER_NEAREST,
@@ -134,7 +142,7 @@ typedef struct {
     int32_t h;
 } nd_Framebuffer;
 
-#define ND_FRAMEBUFFER_NULL ((nd_Framebuffer){0})
+#define ND_FRAMEBUFFER_NULL (ND__ZERO_LIT(nd_Framebuffer))
 
 typedef void (*(*nd_Load_Proc)(const char *))(void);
 
@@ -591,7 +599,7 @@ static const char *nd__fragment_source = "#version 330 core\n"
     "}";
 
 nd_Image_Font nd_default_image_font;
-static uint32_t nd__default_font_img[3528];
+extern uint32_t nd__default_font_img[3528];
 
 NDDEF bool nd_init(
     int32_t viewport_w, int32_t viewport_h,
@@ -711,7 +719,7 @@ NDDEF void nd_init_texture(
     int32_t w, int32_t h,
     nd_Texture_Filter min_filter, nd_Texture_Filter mag_filter
 ) {
-    return nd_init_texture_from_image_buffer(tex__out, NULL, w, h, min_filter, mag_filter);
+    nd_init_texture_from_image_buffer(tex__out, NULL, w, h, min_filter, mag_filter);
 }
 
 NDDEF void nd_deinit_texture(
@@ -1040,13 +1048,13 @@ NDDEF void nd_draw_texture(
     nd_Triangle_Data quad[2];
     quad[0] = (nd_Triangle_Data){
         min_x, min_y, 0, 0, ND_NO_COLOR,
-        min_x, min_y + tex.h, 0, tex.h, ND_NO_COLOR,
-        min_x + tex.w, min_y, tex.w, 0, ND_NO_COLOR
+        min_x, min_y + (float)tex.h, 0, (float)tex.h, ND_NO_COLOR,
+        min_x + (float)tex.w, min_y, (float)tex.w, 0, ND_NO_COLOR
     };
     quad[1] = (nd_Triangle_Data){
-        min_x + tex.w, min_y, tex.w, 0, ND_NO_COLOR,
-        min_x, min_y + tex.h, 0, tex.h, ND_NO_COLOR,
-        min_x + tex.w, min_y + tex.h, tex.w, tex.h, ND_NO_COLOR
+        min_x + (float)tex.w, min_y, (float)tex.w, 0, ND_NO_COLOR,
+        min_x, min_y + tex.h, 0, (float)tex.h, ND_NO_COLOR,
+        min_x + (float)tex.w, min_y + (float)tex.h, (float)tex.w, (float)tex.h, ND_NO_COLOR
     };
     nd_queue_triangles(
         fb,
@@ -1351,7 +1359,7 @@ NDDEF void nd_queue_triangles(
     nd__ctx.draw_queue.len += num_triangles;
 }
 
-static uint32_t nd__default_font_img[3528] = {
+uint32_t nd__default_font_img[3528] = {
     0, 0, 0xFFFF00FF, 0xFFFFFFFF, 0xFFFF00FF, 0xFFFFFFFF, 0, 0xFFFFFFFF, 0xFFFF00FF, 0, 0, 0, 0, 0, 0xFFFF00FF, 0,
     0, 0xFFFFFFFF, 0, 0, 0xFFFF00FF, 0, 0xFFFFFFFF, 0, 0, 0, 0, 0xFFFFFFFF, 0xFFFF00FF, 0, 0xFFFFFFFF, 0,
     0, 0, 0xFFFF00FF, 0xFFFFFFFF, 0xFFFF00FF, 0, 0xFFFFFFFF, 0xFFFF00FF, 0xFFFFFFFF, 0, 0xFFFF00FF, 0, 0, 0, 0xFFFF00FF, 0,
