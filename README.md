@@ -30,7 +30,7 @@ int main() {
 
     GLFWwindow *window = glfwCreateWindow(800, 600, "hello, nanodraw.h", NULL, NULL);
     if (!window) {
-        puts("failed to open window");
+        fprintf(stderr, "failed to open window");
         glfwTerminate();
         return -1;
     }
@@ -38,7 +38,7 @@ int main() {
     glfwMakeContextCurrent(window);
 
     if (!nd_init(800, 600, (nd_Load_Proc)glfwGetProcAddress)) {
-        puts("failed to init nanodraw");
+        fprintf(stderr, "failed to init nanodraw");
         glfwTerminate();
         return -1;
     }
@@ -69,7 +69,7 @@ int main() {
         );
 
         if (!nd_submit_draw_queue()) {
-            puts("failed to draw geometry to the screen");
+            fprintf(stderr, "failed to draw geometry to the screen");
             nd_deinit();
             glfwTerminate();
             return -1;
