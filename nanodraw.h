@@ -611,6 +611,7 @@ NDDEF bool nd_init(
     uint32_t vbo;
     {
         nd__Vertex_Layout dummy_vertex;
+        memset(&dummy_vertex, 0, sizeof(nd__Vertex_Layout));
 
         nd__glGenVertexArrays(1, &vao);
         nd__glGenBuffers(1, &vbo);
