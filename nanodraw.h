@@ -258,6 +258,47 @@ NDDEF void nd_draw_texture(
     float min_x, float min_y
 );
 
+NDDEF void nd_draw_rectangle_cen(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float half_w, float half_h,
+    float radians,
+    float scale,
+    nd_Color c
+);
+
+NDDEF void nd_draw_rectangle_4color_cen(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float half_w, float half_h,
+    float radians,
+    float scale,
+    nd_Color c1, nd_Color c2, nd_Color c3, nd_Color c4
+);
+
+NDDEF void nd_draw_rectangle_textured_cen(
+    nd_Framebuffer fb,
+    nd_Texture tex,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float half_w, float half_h,
+    float radians,
+    float scale,
+    float tex_min_x, float tex_min_y,
+    float tex_w, float tex_h
+);
+
+NDDEF void nd_draw_texture_cen(
+    nd_Framebuffer fb,
+    nd_Texture tex,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float radians,
+    float scale
+);
+
 typedef struct {
     int x_min;
     int width;
@@ -338,6 +379,7 @@ NDDEF void nd_queue_triangles(
 #ifdef NANODRAW_IMPLEMENTATION
 
 #include <string.h>
+#include <math.h>
 
 #define ND_GL_ARRAY_BUFFER 0x8892
 #define ND_GL_STREAM_DRAW 0x88E0
@@ -1065,6 +1107,162 @@ NDDEF void nd_draw_texture(
         2
     );
 }
+
+typedef struct {
+    float x1, y1;
+    float x2, y2;
+    float x3, y3;
+    float x4, y4;
+} nd__Quad;
+
+static void nd__rect_transform(nd__Quad *q, float cen_x, float cen_y, float half_w, float half_h, float radians, float scale) {
+    float c = cosf(radians);
+    float s = sinf(radians);
+    half_w *= scale;
+    half_h *= scale;
+    float xc = half_w * c;
+    float xs = half_w * s;
+    float yc = half_h * c;
+    float ys = half_h * s;
+    q->x1 = -xc + ys + cen_x; // -x, -y
+    q->y1 = -xs - yc + cen_y;
+    q->x2 = -xc - ys + cen_x; // -x, +y
+    q->y2 = -xs + yc + cen_y;
+    q->x3 =  xc - ys + cen_x; // +x, +y
+    q->y3 =  xs + yc + cen_y;
+    q->x4 =  xc + ys + cen_x; // +x, -y
+    q->y4 =  xs - yc + cen_y;
+}
+
+NDDEF void nd_draw_rectangle_cen(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float half_w, float half_h,
+    float radians,
+    float scale,
+    nd_Color c
+) {
+    nd__Quad q;
+    nd__rect_transform(&q, cen_x, cen_y, half_w, half_h, radians, scale);
+
+    nd_Triangle_Data quad[2];
+    quad[0] = (nd_Triangle_Data){
+        q.x1, q.y1, 0, 0, c,
+        q.x2, q.y2, 0, 0, c,
+        q.x4, q.y4, 0, 0, c
+    };
+    quad[1] = (nd_Triangle_Data){
+        q.x4, q.y4, 0, 0, c,
+        q.x2, q.y2, 0, 0, c,
+        q.x3, q.y3, 0, 0, c
+    };
+    nd_queue_triangles(
+        fb,
+        ND_TEXTURE_NULL,
+        blend,
+        quad,
+        2
+    );
+}
+
+NDDEF void nd_draw_rectangle_4color_cen(
+    nd_Framebuffer fb,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float half_w, float half_h,
+    float radians,
+    float scale,
+    nd_Color c1, nd_Color c2, nd_Color c3, nd_Color c4
+) {
+    nd__Quad q;
+    nd__rect_transform(&q, cen_x, cen_y, half_w, half_h, radians, scale);
+
+    nd_Triangle_Data quad[2];
+    quad[0] = (nd_Triangle_Data){
+        q.x1, q.y1, 0, 0, c1,
+        q.x2, q.y2, 0, 0, c2,
+        q.x4, q.y4, 0, 0, c4
+    };
+    quad[1] = (nd_Triangle_Data){
+        q.x4, q.y4, 0, 0, c4,
+        q.x2, q.y2, 0, 0, c2,
+        q.x3, q.y3, 0, 0, c3
+    };
+    nd_queue_triangles(
+        fb,
+        ND_TEXTURE_NULL,
+        blend,
+        quad,
+        2
+    );
+}
+
+NDDEF void nd_draw_rectangle_textured_cen(
+    nd_Framebuffer fb,
+    nd_Texture tex,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float half_w, float half_h,
+    float radians,
+    float scale,
+    float tex_min_x, float tex_min_y,
+    float tex_w, float tex_h
+) {
+    nd__Quad q;
+    nd__rect_transform(&q, cen_x, cen_y, half_w, half_h, radians, scale);
+
+    nd_Triangle_Data quad[2];
+    quad[0] = (nd_Triangle_Data){
+        q.x1, q.y1, tex_min_x, tex_min_y, ND_NO_COLOR,
+        q.x2, q.y2, tex_min_x, tex_min_y + tex_h, ND_NO_COLOR,
+        q.x4, q.y4, tex_min_x + tex_w, tex_min_y, ND_NO_COLOR
+    };
+    quad[1] = (nd_Triangle_Data){
+        q.x4, q.y4, tex_min_x + tex_w, tex_min_y, ND_NO_COLOR,
+        q.x2, q.y2, tex_min_x, tex_min_y + tex_h, ND_NO_COLOR,
+        q.x3, q.y3, tex_min_x + tex_w, tex_min_y + tex_h, ND_NO_COLOR
+    };
+    nd_queue_triangles(
+        fb,
+        tex,
+        blend,
+        quad,
+        2
+    );
+}
+
+NDDEF void nd_draw_texture_cen(
+    nd_Framebuffer fb,
+    nd_Texture tex,
+    nd_Blend blend,
+    float cen_x, float cen_y,
+    float radians,
+    float scale
+) {
+    nd__Quad q;
+    nd__rect_transform(&q, cen_x, cen_y, (float)(tex.w / 2), (float)(tex.h / 2), radians, scale);
+
+    nd_Triangle_Data quad[2];
+    quad[0] = (nd_Triangle_Data){
+        q.x1, q.y1, 0, 0, ND_NO_COLOR,
+        q.x2, q.y2, 0, (float)tex.h, ND_NO_COLOR,
+        q.x4, q.y4, (float)tex.w, 0, ND_NO_COLOR
+    };
+    quad[1] = (nd_Triangle_Data){
+        q.x4, q.y4, (float)tex.w, 0, ND_NO_COLOR,
+        q.x2, q.y2, 0, (float)tex.h, ND_NO_COLOR,
+        q.x3, q.y3, (float)tex.w, (float)tex.h, ND_NO_COLOR
+    };
+    nd_queue_triangles(
+        fb,
+        tex,
+        blend,
+        quad,
+        2
+    );
+}
+
 
 NDDEF void nd_init_image_font_from_image_buffer(
     nd_Image_Font *font__out,

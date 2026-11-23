@@ -88,10 +88,10 @@ int main() {
 ## Why use this over Raylib/SDL/etc?
 
 nanodraw.h has several advantages over traditional 2D graphics libraries:
-- It's small (< 1600 LOC, smaller than raylib's header file that has no implementations)
+- It's small (< 1700 LOC, smaller than raylib's header file that has no implementations)
 - It only depends on OpenGL and libc
   - You pass in a function to load OpenGL pointers, and everything works
-- It has a simple API that you can learn in 10 minutes (only 25 functions in the header section)
+- It has a simple API that you can learn in 10 minutes (only 29 functions in the header section)
 - It abstracts away annoying OpenGL details like global state and flipped coordinates that remain in other libraries
   - Raylib will draw things upside down when you draw to a texture
   - In SDL, if you want to draw a blue rectangle, you have to bind the color blue and *then* draw a rectangle
