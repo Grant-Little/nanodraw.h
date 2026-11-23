@@ -6,9 +6,10 @@ It's lighter than SDL and Raylib. It removes any need for GLAD. It's window-syst
 
 ```c
 #include <stdio.h>
-#include <GLFW/glfw3.h>
+#include <glfw3.h>
 
 #define NANODRAW_IMPLEMENTATION
+
 #include "nanodraw.h"
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -30,7 +31,7 @@ int main() {
 
     GLFWwindow *window = glfwCreateWindow(800, 600, "hello, nanodraw.h", NULL, NULL);
     if (!window) {
-        fprintf(stderr, "failed to open window");
+        puts("failed to open window");
         glfwTerminate();
         return -1;
     }
@@ -38,12 +39,16 @@ int main() {
     glfwMakeContextCurrent(window);
 
     if (!nd_init(800, 600, (nd_Load_Proc)glfwGetProcAddress)) {
-        fprintf(stderr, "failed to init nanodraw");
+        puts("failed to init nanodraw");
         glfwTerminate();
         return -1;
     }
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    float radians = 0;
+    float scale = 1.0f;
+    float delta = 0.005f;
 
     while (!glfwWindowShouldClose(window)) {
         process_input(window);
@@ -53,14 +58,24 @@ int main() {
         nd_draw_rectangle(
             ND_FRAMEBUFFER_NULL,
             ND_BLEND_NONE,
+            600, 400,
             200, 200,
-            400, 200,
             ND_WHITE
+        );
+
+        nd_draw_rectangle_4color_cen(
+            ND_FRAMEBUFFER_NULL,
+            ND_BLEND_NONE,
+            400, 300,
+            100, 100,
+            radians,
+            scale,
+            ND_RED, ND_GREEN, ND_BLUE, ND_MAGENTA
         );
 
         nd_draw_string_from_image_font(
             ND_FRAMEBUFFER_NULL,
-            ND_BLEND_NONE,
+            ND_BLEND_ALPHA,
             NULL,
             "Hello, nanodraw.h",
             20, 20,
@@ -69,7 +84,7 @@ int main() {
         );
 
         if (!nd_submit_draw_queue()) {
-            fprintf(stderr, "failed to draw geometry to the screen");
+            puts("failed to draw geometry to the screen");
             nd_deinit();
             glfwTerminate();
             return -1;
@@ -77,6 +92,8 @@ int main() {
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+        radians += delta;
+        scale = 1.0f + 0.5f * cosf(4.0f * radians);
     }
 
     nd_deinit();
