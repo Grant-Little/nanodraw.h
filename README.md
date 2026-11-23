@@ -9,7 +9,6 @@ It's lighter than SDL and Raylib. It removes any need for GLAD. It's window-syst
 #include <glfw3.h>
 
 #define NANODRAW_IMPLEMENTATION
-
 #include "nanodraw.h"
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
