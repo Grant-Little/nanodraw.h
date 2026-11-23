@@ -1517,8 +1517,8 @@ NDDEF void nd_queue_triangles(
     nd__Draw_Data new_draw_data;
     new_draw_data.fb = fb;
     if (fb.id == 0) {
-        new_draw_data.fb.w = nd__ctx.viewport_w;
-        new_draw_data.fb.h = nd__ctx.viewport_h;
+        new_draw_data.fb.w = (nd__ctx.viewport_w == 0) ? 1.0f : nd__ctx.viewport_w;
+        new_draw_data.fb.h = (nd__ctx.viewport_h == 0) ? 1.0f : nd__ctx.viewport_h;
     }
     new_draw_data.tex_id = tex.id;
     new_draw_data.blend = blend;
