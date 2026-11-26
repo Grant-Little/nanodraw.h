@@ -1096,7 +1096,7 @@ NDDEF void nd_draw_texture(
     };
     quad[1] = (nd_Triangle_Data){
         min_x + (float)tex.w, min_y, (float)tex.w, 0, ND_NO_COLOR,
-        min_x, min_y + tex.h, 0, (float)tex.h, ND_NO_COLOR,
+        min_x, min_y + (float)tex.h, 0, (float)tex.h, ND_NO_COLOR,
         min_x + (float)tex.w, min_y + (float)tex.h, (float)tex.w, (float)tex.h, ND_NO_COLOR
     };
     nd_queue_triangles(
